@@ -1,0 +1,25 @@
+namespace HRNexus.DataAccess.Repositories.Leave;
+
+public sealed record LeaveRequestSummaryQueryResult(
+    int LeaveRequestId,
+    int EmployeeId,
+    string EmployeeCode,
+    string EmployeeName,
+    string? DepartmentName,
+    string? PositionName,
+    int LeaveTypeId,
+    string LeaveTypeName,
+    string LeaveTypeCode,
+    int RequestStatusId,
+    string RequestStatusName,
+    string RequestStatusCode,
+    string? RequestStatusDescription,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    decimal RequestedDays,
+    string? Reason,
+    DateTime RequestedAt,
+    int? ReviewedByUserId,
+    string? ReviewedByUsername,
+    DateTime? ReviewedAt,
+    string? ReviewNotes);
