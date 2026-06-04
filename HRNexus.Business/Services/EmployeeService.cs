@@ -2,6 +2,7 @@ using HRNexus.Business.Exceptions;
 using HRNexus.Business.Interfaces;
 using HRNexus.Business.Models.Core;
 using HRNexus.Business.Models.Employee;
+using HRNexus.Business.Security;
 using HRNexus.DataAccess.Abstractions;
 using HRNexus.DataAccess.Entities.Employee;
 using HRNexus.DataAccess.Repositories.Abstractions;
@@ -15,17 +16,20 @@ public sealed class EmployeeService : IEmployeeService
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IReferenceDataRepository _referenceDataRepository;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IUserActivityLogService _userActivityLogService;
     private readonly IHRNexusDbContext _dbContext;
 
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IReferenceDataRepository referenceDataRepository,
         ICurrentUserContext currentUserContext,
+        IUserActivityLogService userActivityLogService,
         IHRNexusDbContext dbContext)
     {
         _employeeRepository = employeeRepository;
         _referenceDataRepository = referenceDataRepository;
         _currentUserContext = currentUserContext;
+        _userActivityLogService = userActivityLogService;
         _dbContext = dbContext;
     }
 
@@ -135,6 +139,98 @@ public sealed class EmployeeService : IEmployeeService
 
         await OperationalServiceHelpers.SaveChangesAsync(_dbContext, "update employee", cancellationToken);
         return await GetDetailsAsync(employeeId, cancellationToken);
+    }
+
+    public async Task<TerminateEmployeeResponse> TerminateAsync(
+        int employeeId,
+        TerminateEmployeeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.TerminationReasonId <= 0)
+        {
+            throw new BusinessRuleException("Termination reason is required.");
+        }
+
+        if (!request.TerminationDate.HasValue)
+        {
+            throw new BusinessRuleException("Termination date is required.");
+        }
+
+        if (!request.IsEligibleForRehire.HasValue)
+        {
+            throw new BusinessRuleException("Eligible for rehire is required.");
+        }
+
+        var employee = await _employeeRepository.GetByIdForTerminationAsync(employeeId, cancellationToken)
+            ?? throw CreateNotFoundException(employeeId);
+
+        if (employee.IsDeleted || employee.Person.IsDeleted)
+        {
+            throw new BusinessRuleException("Employee is deleted and cannot be terminated.");
+        }
+
+        var terminatedStatus = await _referenceDataRepository.GetTerminatedEmploymentStatusAsync(cancellationToken)
+            ?? throw new BusinessRuleException("Terminated employment status is not configured.");
+
+        if (employee.TerminationDate.HasValue || IsTerminatedStatus(employee, terminatedStatus.EmploymentStatusId))
+        {
+            throw new BusinessRuleException("Employee is already terminated.");
+        }
+
+        var terminationReason = await _referenceDataRepository.GetTerminationReasonAsync(request.TerminationReasonId, cancellationToken)
+            ?? throw new EntityNotFoundException($"Termination reason {request.TerminationReasonId} was not found.");
+
+        var terminationDate = request.TerminationDate.Value;
+        if (terminationDate < employee.HireDate)
+        {
+            throw new BusinessRuleException("Termination date cannot be earlier than hire date.");
+        }
+
+        var maximumTerminationDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+        if (terminationDate > maximumTerminationDate)
+        {
+            throw new BusinessRuleException("Termination date cannot be more than one year in the future.");
+        }
+
+        var currentJob = employee.JobHistories.FirstOrDefault(job => job.IsCurrent);
+        if (currentJob is not null && terminationDate < currentJob.StartDate)
+        {
+            throw new BusinessRuleException("Termination date cannot be earlier than current job start date.");
+        }
+
+        var now = DateTime.UtcNow;
+        employee.TerminationReasonId = terminationReason.TerminationReasonId;
+        employee.TerminationDate = terminationDate;
+        employee.IsEligibleForRehire = request.IsEligibleForRehire.Value;
+        employee.CurrentEmploymentStatusId = terminatedStatus.EmploymentStatusId;
+        employee.ModifiedBy = _currentUserContext.UserId;
+        employee.ModifiedDate = now;
+
+        if (currentJob is not null)
+        {
+            currentJob.EmploymentStatusId = terminatedStatus.EmploymentStatusId;
+
+            // Current job rows cannot have EndDate in this schema, so termination closes the current assignment.
+            currentJob.IsCurrent = false;
+            currentJob.EndDate ??= terminationDate;
+        }
+
+        await OperationalServiceHelpers.SaveChangesAsync(_dbContext, "terminate employee", cancellationToken);
+        await LogEmployeeTerminatedAsync(employee, terminationReason, terminationDate, cancellationToken);
+
+        return new TerminateEmployeeResponse(
+            employee.EmployeeId,
+            employee.EmployeeCode,
+            terminatedStatus.EmploymentStatusId,
+            terminatedStatus.Name,
+            terminationReason.TerminationReasonId,
+            terminationReason.ReasonName,
+            terminationDate,
+            employee.IsEligibleForRehire,
+            employee.IsDeleted,
+            employee.ModifiedDate);
     }
 
     public async Task<EmployeeDetailsDto> DeleteAsync(int employeeId, CancellationToken cancellationToken = default)
@@ -254,6 +350,37 @@ public sealed class EmployeeService : IEmployeeService
     private static string FormatEmployeeCode(int sequenceNumber)
     {
         return $"HRN-EMP-{sequenceNumber:D4}";
+    }
+
+    private static bool IsTerminatedStatus(EmployeeEntity employee, int terminatedStatusId)
+    {
+        return employee.CurrentEmploymentStatusId == terminatedStatusId
+            || string.Equals(employee.CurrentEmploymentStatus.Name, "Terminated", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(employee.CurrentEmploymentStatus.EmploymentStatusCode, "TERMINATED", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(employee.CurrentEmploymentStatus.EmploymentStatusCode, "TERM", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(employee.CurrentEmploymentStatus.EmploymentStatusCode, "T", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task LogEmployeeTerminatedAsync(
+        EmployeeEntity employee,
+        TerminationReasonReference terminationReason,
+        DateOnly terminationDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _userActivityLogService.LogAsync(
+                _currentUserContext.UserId,
+                SecurityActivityCodes.EmployeeTerminated,
+                true,
+                $"Employee {employee.EmployeeCode} terminated. Reason: {terminationReason.ReasonName}. Date: {terminationDate:yyyy-MM-dd}.",
+                null,
+                cancellationToken);
+        }
+        catch
+        {
+            // Activity logging must not roll back a completed employee lifecycle operation.
+        }
     }
 
     private static EmployeeDetailsDto MapDetails(EmployeeDetailsQueryResult employee)

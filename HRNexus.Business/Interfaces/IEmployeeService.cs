@@ -9,5 +9,6 @@ public interface IEmployeeService
     Task<EmployeeCurrentContextDto> GetCurrentContextAsync(int employeeId, CancellationToken cancellationToken = default);
     Task<EmployeeDetailsDto> CreateAsync(CreateEmployeeRequest request, CancellationToken cancellationToken = default);
     Task<EmployeeDetailsDto> UpdateAsync(int employeeId, UpdateEmployeeRequest request, CancellationToken cancellationToken = default);
+    Task<TerminateEmployeeResponse> TerminateAsync(int employeeId, TerminateEmployeeRequest request, CancellationToken cancellationToken = default);
     Task<EmployeeDetailsDto> DeleteAsync(int employeeId, CancellationToken cancellationToken = default);
 }

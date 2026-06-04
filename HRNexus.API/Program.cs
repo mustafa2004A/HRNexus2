@@ -118,6 +118,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicyNames.HrOrAdmin, policy =>
         policy.RequireRole("Admin", "HRManager", "HRClerk"));
 
+    // TODO: Replace this role policy with Employees.Terminate when endpoint-level permission authorization is available.
+    options.AddPolicy(AuthorizationPolicyNames.EmployeeTermination, policy =>
+        policy.RequireRole("Admin", "HRManager"));
+
     options.AddPolicy(AuthorizationPolicyNames.SecurityAdmin, policy =>
         policy.RequireRole("Admin"));
 

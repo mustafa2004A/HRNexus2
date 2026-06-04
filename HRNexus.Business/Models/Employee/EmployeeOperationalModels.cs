@@ -51,6 +51,30 @@ public class CreateEmployeeCoreRequest
 
 public sealed class UpdateEmployeeCoreRequest : CreateEmployeeCoreRequest;
 
+public sealed class TerminateEmployeeRequest
+{
+    [Range(1, int.MaxValue)]
+    public int TerminationReasonId { get; set; }
+
+    [Required]
+    public DateOnly? TerminationDate { get; set; }
+
+    [Required]
+    public bool? IsEligibleForRehire { get; set; }
+}
+
+public sealed record TerminateEmployeeResponse(
+    int EmployeeId,
+    string EmployeeCode,
+    int CurrentEmploymentStatusId,
+    string CurrentEmploymentStatusName,
+    int TerminationReasonId,
+    string TerminationReasonName,
+    DateOnly TerminationDate,
+    bool IsEligibleForRehire,
+    bool IsDeleted,
+    DateTime? ModifiedDate);
+
 public sealed class CreateInitialJobAssignmentRequest
 {
     [Range(1, int.MaxValue)]

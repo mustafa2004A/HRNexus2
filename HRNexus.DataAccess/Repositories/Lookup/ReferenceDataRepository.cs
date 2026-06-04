@@ -40,6 +40,36 @@ public sealed class ReferenceDataRepository : IReferenceDataRepository
     public Task<bool> TerminationReasonExistsAsync(int terminationReasonId, CancellationToken cancellationToken = default) =>
         _dbContext.TerminationReasons.AsNoTracking().AnyAsync(reason => reason.TerminationReasonId == terminationReasonId, cancellationToken);
 
+    public Task<EmploymentStatusReference?> GetTerminatedEmploymentStatusAsync(CancellationToken cancellationToken = default)
+    {
+        return _dbContext.EmploymentStatuses
+            .AsNoTracking()
+            .Where(status =>
+                status.EmploymentStatusCode == "TERMINATED"
+                || status.EmploymentStatusCode == "TERM"
+                || status.EmploymentStatusCode == "T"
+                || status.Name == "Terminated")
+            .OrderBy(status => status.Name == "Terminated" ? 0 : 1)
+            .ThenBy(status => status.EmploymentStatusId)
+            .Select(status => new EmploymentStatusReference(
+                status.EmploymentStatusId,
+                status.Name,
+                status.EmploymentStatusCode))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<TerminationReasonReference?> GetTerminationReasonAsync(int terminationReasonId, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.TerminationReasons
+            .AsNoTracking()
+            .Where(reason => reason.TerminationReasonId == terminationReasonId)
+            .Select(reason => new TerminationReasonReference(
+                reason.TerminationReasonId,
+                reason.ReasonName,
+                reason.IsEligibleForRehire))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<bool> DepartmentExistsAsync(int departmentId, CancellationToken cancellationToken = default) =>
         _dbContext.Departments.AsNoTracking().AnyAsync(department => department.DepartmentId == departmentId && department.IsActive, cancellationToken);
 

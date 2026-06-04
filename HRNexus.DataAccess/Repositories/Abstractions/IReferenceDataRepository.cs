@@ -11,6 +11,8 @@ public interface IReferenceDataRepository
     Task<bool> IdentifierTypeExistsAsync(int identifierTypeId, CancellationToken cancellationToken = default);
     Task<bool> EmploymentStatusExistsAsync(int employmentStatusId, CancellationToken cancellationToken = default);
     Task<bool> TerminationReasonExistsAsync(int terminationReasonId, CancellationToken cancellationToken = default);
+    Task<EmploymentStatusReference?> GetTerminatedEmploymentStatusAsync(CancellationToken cancellationToken = default);
+    Task<TerminationReasonReference?> GetTerminationReasonAsync(int terminationReasonId, CancellationToken cancellationToken = default);
     Task<bool> DepartmentExistsAsync(int departmentId, CancellationToken cancellationToken = default);
     Task<bool> PositionExistsAsync(int positionId, CancellationToken cancellationToken = default);
     Task<bool> EmploymentTypeExistsAsync(int employmentTypeId, CancellationToken cancellationToken = default);
@@ -21,3 +23,5 @@ public interface IReferenceDataRepository
 }
 
 public sealed record DocumentTypeReference(int DocumentTypeId, string Name, bool IsExpiryTracked, bool IsActive);
+public sealed record EmploymentStatusReference(int EmploymentStatusId, string Name, string EmploymentStatusCode);
+public sealed record TerminationReasonReference(int TerminationReasonId, string ReasonName, bool IsEligibleForRehire);

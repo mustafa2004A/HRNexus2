@@ -8,4 +8,5 @@ public static class SecurityActivityCodes
     public const string TokenRefresh = "TOKEN_REFRESH";
     public const string AccessDenied = "ACCESS_DENIED";
     public const string AccountLocked = "ACCOUNT_LOCKED";
+    public const string EmployeeTerminated = "EMPLOYEE_TERMINATED";
 }

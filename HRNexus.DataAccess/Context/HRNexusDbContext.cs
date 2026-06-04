@@ -8,7 +8,7 @@ using EmployeeEntity = HRNexus.DataAccess.Entities.Employee.Employee;
 
 namespace HRNexus.DataAccess.Context;
 
-public sealed class HRNexusDbContext : DbContext, IHRNexusDbContext
+public sealed partial class HRNexusDbContext : DbContext, IHRNexusDbContext
 {
     public HRNexusDbContext(DbContextOptions<HRNexusDbContext> options)
         : base(options)
@@ -65,5 +65,7 @@ public sealed class HRNexusDbContext : DbContext, IHRNexusDbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HRNexusDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        OnModelCreatingPartial(modelBuilder);
     }
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }

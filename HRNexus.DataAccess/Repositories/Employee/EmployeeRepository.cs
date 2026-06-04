@@ -139,6 +139,16 @@ public sealed class EmployeeRepository : IEmployeeRepository
             .FirstOrDefaultAsync(employee => employee.EmployeeId == employeeId, cancellationToken);
     }
 
+    public Task<EmployeeEntity?> GetByIdForTerminationAsync(int employeeId, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Employees
+            .Include(employee => employee.Person)
+            .Include(employee => employee.CurrentEmploymentStatus)
+            .Include(employee => employee.JobHistories.Where(job => job.IsCurrent))
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(employee => employee.EmployeeId == employeeId, cancellationToken);
+    }
+
     public async Task<int> GetNextEmployeeCodeNumberAsync(CancellationToken cancellationToken = default)
     {
         var connection = _dbContext.Database.GetDbConnection();

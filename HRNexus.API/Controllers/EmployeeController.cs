@@ -91,6 +91,26 @@ public sealed class EmployeeController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Terminates an employee by setting termination details and updating the employee lifecycle status.
+    /// </summary>
+    [Authorize(Policy = AuthorizationPolicyNames.EmployeeTermination)]
+    [HttpPost("{employeeId:int}/termination")]
+    [ProducesResponseType(typeof(TerminateEmployeeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<TerminateEmployeeResponse>> TerminateEmployee(
+        [FromRoute, Range(1, int.MaxValue)] int employeeId,
+        [FromBody] TerminateEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _employeeService.TerminateAsync(employeeId, request, cancellationToken);
+        return Ok(result);
+    }
+
     [Authorize(Policy = AuthorizationPolicyNames.HrOrAdmin)]
     [HttpDelete("{employeeId:int}")]
     [ProducesResponseType(typeof(EmployeeDetailsDto), StatusCodes.Status200OK)]
