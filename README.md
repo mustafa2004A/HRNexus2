@@ -22,3 +22,12 @@ Example:
 5. Run the project from Visual Studio or using:
 
 dotnet run --project HRNexus.API
+## JWT Configuration
+
+The project uses JWT authentication.  
+Before running the backend, add these environment variables:
+
+JWT__Key=your-secret-key-at-least-32-characters
+JWT__Issuer=HRNexus
+JWT__Audience=HRNexusUsers
+JWT__ExpiryMinutes=60
