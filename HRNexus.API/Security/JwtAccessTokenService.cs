@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using HRNexus.Business.Interfaces;
 using HRNexus.Business.Models.Auth;
+using HRNexus.Business.Security;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -39,6 +40,7 @@ public sealed class JwtAccessTokenService : IAccessTokenService
         }
 
         claims.AddRange(user.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(user.Permissions.Select(permission => new Claim(PermissionClaimTypes.Permission, permission)));
 
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,

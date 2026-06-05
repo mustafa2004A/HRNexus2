@@ -55,7 +55,8 @@ public sealed record AccessTokenUser(
     int UserId,
     int? EmployeeId,
     string Username,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    IReadOnlyList<string> Permissions);
 
 public sealed record AccessTokenResult(
     string Token,

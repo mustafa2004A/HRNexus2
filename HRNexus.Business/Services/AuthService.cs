@@ -117,7 +117,8 @@ public sealed class AuthService : IAuthService
         var user = await _userRepository.GetIdentityByIdAsync(existingToken.UserId, cancellationToken)
             ?? throw new AuthenticationFailedException("User account was not found.");
 
-        var tokenUser = new AccessTokenUser(user.UserId, user.EmployeeId, user.Username, user.Roles);
+        var permissions = await _permissionService.GetEffectivePermissionCodesAsync(user.UserId, cancellationToken);
+        var tokenUser = new AccessTokenUser(user.UserId, user.EmployeeId, user.Username, user.Roles, permissions);
         var accessToken = _accessTokenService.CreateAccessToken(tokenUser);
 
         await _userActivityLogService.LogAsync(
@@ -176,7 +177,8 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken)
     {
         var roles = await _permissionService.GetRolesAsync(userId, cancellationToken);
-        var tokenUser = new AccessTokenUser(userId, employeeId, username, roles);
+        var permissions = await _permissionService.GetEffectivePermissionCodesAsync(userId, cancellationToken);
+        var tokenUser = new AccessTokenUser(userId, employeeId, username, roles, permissions);
         var accessToken = _accessTokenService.CreateAccessToken(tokenUser);
         var refreshToken = await _refreshTokenService.CreateAsync(userId, ipAddress, cancellationToken);
 

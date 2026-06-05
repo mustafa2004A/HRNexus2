@@ -24,3 +24,7 @@ public sealed record UserPermissionQueryResult(
     string ModuleName,
     int PermissionMask,
     string Source);
+
+public sealed record UserEffectivePermissionQueryResult(
+    string ModuleName,
+    string PermissionName);

@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmployeeJobHistoryService, EmployeeJobHistoryService>();
         services.AddScoped<IEmployeeDocumentService, EmployeeDocumentService>();
         services.AddScoped<IEmployeeFamilyMemberService, EmployeeFamilyMemberService>();
+        services.AddScoped<IEmployeeTerminationNotificationService, LoggingEmployeeTerminationNotificationService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ISecurityAdminService, SecurityAdminService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();

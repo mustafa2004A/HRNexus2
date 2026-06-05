@@ -2,11 +2,13 @@ using HRNexus.Business.Exceptions;
 using HRNexus.Business.Interfaces;
 using HRNexus.Business.Models.Core;
 using HRNexus.Business.Models.Employee;
+using HRNexus.Business.Models.Notifications;
 using HRNexus.Business.Security;
 using HRNexus.DataAccess.Abstractions;
 using HRNexus.DataAccess.Entities.Employee;
 using HRNexus.DataAccess.Repositories.Abstractions;
 using HRNexus.DataAccess.Repositories.Employee;
+using Microsoft.Extensions.Logging;
 using EmployeeEntity = HRNexus.DataAccess.Entities.Employee.Employee;
 
 namespace HRNexus.Business.Services;
@@ -17,20 +19,26 @@ public sealed class EmployeeService : IEmployeeService
     private readonly IReferenceDataRepository _referenceDataRepository;
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IUserActivityLogService _userActivityLogService;
+    private readonly IEmployeeTerminationNotificationService _employeeTerminationNotificationService;
     private readonly IHRNexusDbContext _dbContext;
+    private readonly ILogger<EmployeeService> _logger;
 
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IReferenceDataRepository referenceDataRepository,
         ICurrentUserContext currentUserContext,
         IUserActivityLogService userActivityLogService,
-        IHRNexusDbContext dbContext)
+        IEmployeeTerminationNotificationService employeeTerminationNotificationService,
+        IHRNexusDbContext dbContext,
+        ILogger<EmployeeService> logger)
     {
         _employeeRepository = employeeRepository;
         _referenceDataRepository = referenceDataRepository;
         _currentUserContext = currentUserContext;
         _userActivityLogService = userActivityLogService;
+        _employeeTerminationNotificationService = employeeTerminationNotificationService;
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<EmployeeSummaryDto>> ListAsync(
@@ -219,6 +227,7 @@ public sealed class EmployeeService : IEmployeeService
 
         await OperationalServiceHelpers.SaveChangesAsync(_dbContext, "terminate employee", cancellationToken);
         await LogEmployeeTerminatedAsync(employee, terminationReason, terminationDate, cancellationToken);
+        await NotifyEmployeeTerminatedAsync(employee, terminationReason, terminationDate, now, cancellationToken);
 
         return new TerminateEmployeeResponse(
             employee.EmployeeId,
@@ -373,13 +382,81 @@ public sealed class EmployeeService : IEmployeeService
                 _currentUserContext.UserId,
                 SecurityActivityCodes.EmployeeTerminated,
                 true,
-                $"Employee {employee.EmployeeCode} terminated. Reason: {terminationReason.ReasonName}. Date: {terminationDate:yyyy-MM-dd}.",
+                $"Employee {employee.EmployeeCode} terminated. Reason: {terminationReason.ReasonName}. Date: {terminationDate:yyyy-MM-dd}. Notification step triggered.",
                 null,
                 cancellationToken);
         }
         catch
         {
             // Activity logging must not roll back a completed employee lifecycle operation.
+        }
+    }
+
+    private async Task NotifyEmployeeTerminatedAsync(
+        EmployeeEntity employee,
+        TerminationReasonReference terminationReason,
+        DateOnly terminationDate,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var notification = new EmployeeTerminationNotification(
+            employee.EmployeeId,
+            employee.EmployeeCode,
+            employee.Person.FullName,
+            terminationReason.ReasonName,
+            terminationDate,
+            employee.IsEligibleForRehire,
+            _currentUserContext.UserId,
+            _currentUserContext.Username,
+            occurredAt);
+
+        try
+        {
+            await _employeeTerminationNotificationService.NotifyEmployeeTerminatedAsync(notification, cancellationToken);
+            await LogTerminationNotificationOutcomeAsync(
+                employee.EmployeeCode,
+                true,
+                "Termination notification step completed.",
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Employee termination notification failed after termination was persisted. EmployeeId: {EmployeeId}; EmployeeCode: {EmployeeCode}",
+                employee.EmployeeId,
+                employee.EmployeeCode);
+
+            await LogTerminationNotificationOutcomeAsync(
+                employee.EmployeeCode,
+                false,
+                "Termination notification step failed after employee termination was persisted.",
+                cancellationToken);
+        }
+    }
+
+    private async Task LogTerminationNotificationOutcomeAsync(
+        string employeeCode,
+        bool isSuccess,
+        string details,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _userActivityLogService.LogAsync(
+                _currentUserContext.UserId,
+                SecurityActivityCodes.EmployeeTerminated,
+                isSuccess,
+                $"Employee {employeeCode}. {details}",
+                null,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Could not write termination notification outcome activity log. EmployeeCode: {EmployeeCode}",
+                employeeCode);
         }
     }
 

@@ -21,6 +21,7 @@ builder.Services.AddScoped<IClientIpAddressProvider, ClientIpAddressProvider>();
 builder.Services.AddScoped<ICurrentUserContext, HeaderCurrentUserContext>();
 builder.Services.AddScoped<IAccessTokenService, JwtAccessTokenService>();
 builder.Services.Configure<AuthSecurityOptions>(builder.Configuration.GetSection("AuthSecurity"));
+builder.Services.Configure<HrNotificationOptions>(builder.Configuration.GetSection("HrNotifications"));
 builder.Services.Configure<FileStorageOptions>(options =>
 {
     builder.Configuration.GetSection("FileStorage").Bind(options);
@@ -118,9 +119,11 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthorizationPolicyNames.HrOrAdmin, policy =>
         policy.RequireRole("Admin", "HRManager", "HRClerk"));
 
-    // TODO: Replace this role policy with Employees.Terminate when endpoint-level permission authorization is available.
-    options.AddPolicy(AuthorizationPolicyNames.EmployeeTermination, policy =>
-        policy.RequireRole("Admin", "HRManager"));
+    options.AddPolicy(AuthorizationPolicyNames.CanTerminateEmployee, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(PermissionClaimTypes.Permission, PermissionCodes.EmployeesTerminate);
+    });
 
     options.AddPolicy(AuthorizationPolicyNames.SecurityAdmin, policy =>
         policy.RequireRole("Admin"));

@@ -13,5 +13,6 @@ public interface IUserRepository
     Task<UserIdentityQueryResult?> GetIdentityByIdAsync(int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetRoleNamesAsync(int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserPermissionQueryResult>> GetPermissionSummariesAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserEffectivePermissionQueryResult>> GetEffectivePermissionsAsync(int userId, CancellationToken cancellationToken = default);
     Task<AccountStatus?> GetAccountStatusByCodeAsync(string statusCode, CancellationToken cancellationToken = default);
 }

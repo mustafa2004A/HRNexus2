@@ -6,6 +6,12 @@ namespace HRNexus.Business.Services;
 
 public sealed class PermissionService : IPermissionService
 {
+    private static readonly IReadOnlyDictionary<string, string> ModulePermissionCodeNames =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Employee"] = "Employees"
+        };
+
     private readonly IUserRepository _userRepository;
 
     public PermissionService(IUserRepository userRepository)
@@ -32,9 +38,29 @@ public sealed class PermissionService : IPermissionService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<string>> GetEffectivePermissionCodesAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var permissions = await _userRepository.GetEffectivePermissionsAsync(userId, cancellationToken);
+
+        return permissions
+            .Select(permission => $"{GetPermissionCodeModuleName(permission.ModuleName)}.{permission.PermissionName}")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(permissionCode => permissionCode)
+            .ToList();
+    }
+
     public async Task<bool> IsInRoleAsync(int userId, string roleName, CancellationToken cancellationToken = default)
     {
         var roles = await GetRolesAsync(userId, cancellationToken);
         return roles.Any(role => string.Equals(role, roleName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetPermissionCodeModuleName(string moduleName)
+    {
+        return ModulePermissionCodeNames.TryGetValue(moduleName, out var codeName)
+            ? codeName
+            : moduleName;
     }
 }

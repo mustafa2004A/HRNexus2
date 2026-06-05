@@ -177,6 +177,89 @@ public sealed class UserRepository : IUserRepository
             .ToList();
     }
 
+    public async Task<IReadOnlyList<UserEffectivePermissionQueryResult>> GetEffectivePermissionsAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var activeModules = await _dbContext.Modules
+            .AsNoTracking()
+            .Where(module => module.IsActive)
+            .OrderBy(module => module.ModuleName)
+            .Select(module => new
+            {
+                module.ModuleId,
+                module.ModuleName
+            })
+            .ToListAsync(cancellationToken);
+
+        var userState = await _dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.UserId == userId)
+            .Select(user => new
+            {
+                user.IsActive,
+                AccountStatusCode = user.AccountStatus.StatusCode,
+                AccountStatusIsActive = user.AccountStatus.IsActive
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (userState is null ||
+            !IsPermissionEligibleUser(userState.IsActive, userState.AccountStatusCode, userState.AccountStatusIsActive))
+        {
+            return [];
+        }
+
+        var activePermissions = await _dbContext.Permissions
+            .AsNoTracking()
+            .Where(permission => permission.IsActive)
+            .OrderBy(permission => permission.BitOrder)
+            .Select(permission => new
+            {
+                permission.PermissionName,
+                permission.BitValue
+            })
+            .ToListAsync(cancellationToken);
+
+        var rolePermissions = await _dbContext.UserRoles
+            .AsNoTracking()
+            .Where(userRole => userRole.UserId == userId && userRole.Role.IsActive)
+            .SelectMany(userRole => userRole.Role.RolePermissions)
+            .Where(permission => permission.Module.IsActive)
+            .Select(permission => new
+            {
+                permission.ModuleId,
+                permission.PermissionMask
+            })
+            .ToListAsync(cancellationToken);
+
+        var userPermissions = await _dbContext.UserPermissions
+            .AsNoTracking()
+            .Where(permission => permission.UserId == userId && permission.Module.IsActive)
+            .Select(permission => new
+            {
+                permission.ModuleId,
+                permission.PermissionMask
+            })
+            .ToListAsync(cancellationToken);
+
+        return activeModules
+            .SelectMany(module =>
+            {
+                var masks = rolePermissions
+                    .Where(permission => permission.ModuleId == module.ModuleId)
+                    .Select(permission => permission.PermissionMask)
+                    .Concat(userPermissions
+                        .Where(permission => permission.ModuleId == module.ModuleId)
+                        .Select(permission => permission.PermissionMask));
+                var effectiveMask = CalculateEffectivePermissionMask(masks);
+
+                return activePermissions
+                    .Where(permission => HasPermission(effectiveMask, permission.BitValue))
+                    .Select(permission => new UserEffectivePermissionQueryResult(
+                        module.ModuleName,
+                        permission.PermissionName));
+            })
+            .ToList();
+    }
+
     public Task<AccountStatus?> GetAccountStatusByCodeAsync(string statusCode, CancellationToken cancellationToken = default)
     {
         return _dbContext.AccountStatuses
@@ -209,5 +292,10 @@ public sealed class UserRepository : IUserRepository
         }
 
         return effectiveMask;
+    }
+
+    private static bool HasPermission(int permissionMask, int bitValue)
+    {
+        return permissionMask == -1 || (permissionMask & bitValue) == bitValue;
     }
 }

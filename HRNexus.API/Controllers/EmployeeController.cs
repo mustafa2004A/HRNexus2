@@ -94,7 +94,7 @@ public sealed class EmployeeController : ControllerBase
     /// <summary>
     /// Terminates an employee by setting termination details and updating the employee lifecycle status.
     /// </summary>
-    [Authorize(Policy = AuthorizationPolicyNames.EmployeeTermination)]
+    [Authorize(Policy = AuthorizationPolicyNames.CanTerminateEmployee)]
     [HttpPost("{employeeId:int}/termination")]
     [ProducesResponseType(typeof(TerminateEmployeeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
