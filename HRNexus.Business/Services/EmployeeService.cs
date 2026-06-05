@@ -87,9 +87,9 @@ public sealed class EmployeeService : IEmployeeService
             EmployeeCode = FormatEmployeeCode(nextEmployeeCodeNumber),
             HireDate = request.Employee.HireDate,
             CurrentEmploymentStatusId = request.Employee.CurrentEmploymentStatusId,
-            TerminationReasonId = request.Employee.TerminationReasonId,
-            TerminationDate = request.Employee.TerminationDate,
-            IsEligibleForRehire = request.Employee.IsEligibleForRehire,
+            TerminationReasonId = null,
+            TerminationDate = null,
+            IsEligibleForRehire = false,
             CreatedBy = _currentUserContext.UserId,
             CreatedDate = now
         };
@@ -139,9 +139,6 @@ public sealed class EmployeeService : IEmployeeService
 
         employee.HireDate = request.Employee.HireDate;
         employee.CurrentEmploymentStatusId = request.Employee.CurrentEmploymentStatusId;
-        employee.TerminationReasonId = request.Employee.TerminationReasonId;
-        employee.TerminationDate = request.Employee.TerminationDate;
-        employee.IsEligibleForRehire = request.Employee.IsEligibleForRehire;
         employee.ModifiedBy = _currentUserContext.UserId;
         employee.ModifiedDate = DateTime.UtcNow;
 
@@ -286,22 +283,6 @@ public sealed class EmployeeService : IEmployeeService
         if (!await _referenceDataRepository.EmploymentStatusExistsAsync(request.CurrentEmploymentStatusId, cancellationToken))
         {
             throw new BusinessRuleException($"Employment status {request.CurrentEmploymentStatusId} was not found.");
-        }
-
-        if (request.TerminationReasonId.HasValue
-            && !await _referenceDataRepository.TerminationReasonExistsAsync(request.TerminationReasonId.Value, cancellationToken))
-        {
-            throw new BusinessRuleException($"Termination reason {request.TerminationReasonId.Value} was not found.");
-        }
-
-        if (request.TerminationReasonId.HasValue != request.TerminationDate.HasValue)
-        {
-            throw new BusinessRuleException("Termination reason and termination date must be provided together.");
-        }
-
-        if (request.TerminationDate.HasValue && request.TerminationDate.Value < request.HireDate)
-        {
-            throw new BusinessRuleException("Termination date cannot be earlier than hire date.");
         }
     }
 

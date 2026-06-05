@@ -40,13 +40,6 @@ public class CreateEmployeeCoreRequest
 
     [Range(1, int.MaxValue)]
     public int CurrentEmploymentStatusId { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int? TerminationReasonId { get; set; }
-
-    public DateOnly? TerminationDate { get; set; }
-
-    public bool IsEligibleForRehire { get; set; } = true;
 }
 
 public sealed class UpdateEmployeeCoreRequest : CreateEmployeeCoreRequest;

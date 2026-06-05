@@ -218,7 +218,7 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<EmployeeEnt
         builder.Property(x => x.CurrentEmploymentStatusId).HasColumnName("CurrentEmploymentStatusID");
         builder.Property(x => x.TerminationReasonId).HasColumnName("TerminationReasonID");
         builder.Property(x => x.TerminationDate).HasColumnType("date");
-        builder.Property(x => x.IsEligibleForRehire).HasDefaultValue(true);
+        builder.Property(x => x.IsEligibleForRehire);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.Property(x => x.DeletedBy).HasColumnName("DeletedBy");
         builder.Property(x => x.DeletedDate).HasColumnType("datetime2(7)");
