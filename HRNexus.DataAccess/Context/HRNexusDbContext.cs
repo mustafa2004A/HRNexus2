@@ -51,6 +51,7 @@ public sealed partial class HRNexusDbContext : DbContext, IHRNexusDbContext
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<PermissionAudit> PermissionAudits => Set<PermissionAudit>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<ActionVerificationCode> ActionVerificationCodes => Set<ActionVerificationCode>();
     public DbSet<ActivityType> ActivityTypes => Set<ActivityType>();
     public DbSet<UserActivityLog> UserActivityLogs => Set<UserActivityLog>();
 

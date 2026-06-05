@@ -22,6 +22,7 @@ builder.Services.AddScoped<ICurrentUserContext, HeaderCurrentUserContext>();
 builder.Services.AddScoped<IAccessTokenService, JwtAccessTokenService>();
 builder.Services.Configure<AuthSecurityOptions>(builder.Configuration.GetSection("AuthSecurity"));
 builder.Services.Configure<HrNotificationOptions>(builder.Configuration.GetSection("HrNotifications"));
+builder.Services.Configure<TerminationVerificationOptions>(builder.Configuration.GetSection("TerminationVerification"));
 builder.Services.Configure<FileStorageOptions>(options =>
 {
     builder.Configuration.GetSection("FileStorage").Bind(options);

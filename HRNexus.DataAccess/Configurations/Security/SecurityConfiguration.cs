@@ -327,6 +327,57 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
     }
 }
 
+public sealed class ActionVerificationCodeConfiguration : IEntityTypeConfiguration<ActionVerificationCode>
+{
+    public void Configure(EntityTypeBuilder<ActionVerificationCode> builder)
+    {
+        builder.ToTable("ActionVerificationCode", "sec", table =>
+        {
+            table.HasCheckConstraint("CK_ActionVerificationCode_ActionType_NotEmpty", "(len(ltrim(rtrim([ActionType])))>(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_AttemptCount_NonNegative", "([AttemptCount]>=(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_DeliveryMethod_NotEmpty", "(len(ltrim(rtrim([DeliveryMethod])))>(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_ExpiresAt_AfterCreatedAt", "([ExpiresAt]>[CreatedAt])");
+            table.HasCheckConstraint("CK_ActionVerificationCode_MaxAttempts_Positive", "([MaxAttempts]>(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_RevokedAt_AfterCreatedAt", "([RevokedAt] IS NULL OR [RevokedAt]>=[CreatedAt])");
+            table.HasCheckConstraint("CK_ActionVerificationCode_TargetEntityID_Positive", "([TargetEntityID]>(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_TargetEntityType_NotEmpty", "(len(ltrim(rtrim([TargetEntityType])))>(0))");
+            table.HasCheckConstraint("CK_ActionVerificationCode_UsedAt_AfterCreatedAt", "([UsedAt] IS NULL OR [UsedAt]>=[CreatedAt])");
+        });
+
+        builder.HasKey(x => x.ActionVerificationCodeId).HasName("PK_ActionVerificationCode");
+
+        builder.Property(x => x.ActionVerificationCodeId)
+            .HasColumnName("ActionVerificationCodeID");
+        builder.Property(x => x.ActionType).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.TargetEntityType).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.TargetEntityId).HasColumnName("TargetEntityID");
+        builder.Property(x => x.RequestedByUserId).HasColumnName("RequestedByUserID");
+        builder.Property(x => x.DeliveryMethod).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.DestinationMasked).HasMaxLength(255);
+        builder.Property(x => x.CodeHash).HasMaxLength(255).IsRequired();
+        builder.Property(x => x.ExpiresAt).HasColumnType("datetime2(7)");
+        builder.Property(x => x.UsedAt).HasColumnType("datetime2(7)");
+        builder.Property(x => x.AttemptCount).HasDefaultValue(0);
+        builder.Property(x => x.CreatedAt).HasColumnType("datetime2(7)").HasDefaultValueSql("sysdatetime()");
+        builder.Property(x => x.CreatedByIp).HasMaxLength(50);
+        builder.Property(x => x.IsRevoked).HasDefaultValue(false);
+        builder.Property(x => x.RevokedAt).HasColumnType("datetime2(7)");
+
+        builder.HasIndex(x => x.ExpiresAt).HasDatabaseName("IX_ActionVerificationCode_ExpiresAt");
+        builder.HasIndex(x => x.RequestedByUserId).HasDatabaseName("IX_ActionVerificationCode_RequestedByUserID");
+        builder.HasIndex(x => new { x.ActionType, x.TargetEntityType, x.TargetEntityId })
+            .HasDatabaseName("IX_ActionVerificationCode_Action_Target");
+        builder.HasIndex(x => new { x.RequestedByUserId, x.ActionType, x.TargetEntityType, x.TargetEntityId, x.IsRevoked, x.UsedAt })
+            .HasDatabaseName("IX_ActionVerificationCode_Requester_Action_State");
+
+        builder.HasOne(x => x.RequestedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.RequestedByUserId)
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasConstraintName("FK_ActionVerificationCode_User_RequestedBy");
+    }
+}
+
 public sealed class ActivityTypeConfiguration : IEntityTypeConfiguration<ActivityType>
 {
     public void Configure(EntityTypeBuilder<ActivityType> builder)

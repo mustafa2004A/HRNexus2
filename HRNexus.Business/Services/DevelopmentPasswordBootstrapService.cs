@@ -13,6 +13,7 @@ public sealed class DevelopmentPasswordBootstrapService : IDevelopmentPasswordBo
 
     private static readonly string[] DefaultDemoUsernames =
     [
+        "Admin",
         "admin",
         "sarah.haddad",
         "omar.khalil",
@@ -91,7 +92,7 @@ public sealed class DevelopmentPasswordBootstrapService : IDevelopmentPasswordBo
             .Select(username => BusinessValidation.NormalizeOptionalText(username))
             .Where(username => !string.IsNullOrWhiteSpace(username))
             .Select(username => username!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
     }
 

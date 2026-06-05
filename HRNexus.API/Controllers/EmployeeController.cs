@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HRNexus.API.Security;
 using HRNexus.Business.Interfaces;
 using HRNexus.Business.Models.Employee;
 using HRNexus.Business.Models.Files;
@@ -17,17 +18,20 @@ public sealed class EmployeeController : ControllerBase
     private readonly IEmployeeJobHistoryService _employeeJobHistoryService;
     private readonly IEmployeeDocumentService _employeeDocumentService;
     private readonly IEmployeeFamilyMemberService _employeeFamilyMemberService;
+    private readonly IClientIpAddressProvider _clientIpAddressProvider;
 
     public EmployeeController(
         IEmployeeService employeeService,
         IEmployeeJobHistoryService employeeJobHistoryService,
         IEmployeeDocumentService employeeDocumentService,
-        IEmployeeFamilyMemberService employeeFamilyMemberService)
+        IEmployeeFamilyMemberService employeeFamilyMemberService,
+        IClientIpAddressProvider clientIpAddressProvider)
     {
         _employeeService = employeeService;
         _employeeJobHistoryService = employeeJobHistoryService;
         _employeeDocumentService = employeeDocumentService;
         _employeeFamilyMemberService = employeeFamilyMemberService;
+        _clientIpAddressProvider = clientIpAddressProvider;
     }
 
     [Authorize(Policy = AuthorizationPolicyNames.HrOrAdmin)]
@@ -92,8 +96,58 @@ public sealed class EmployeeController : ControllerBase
     }
 
     /// <summary>
-    /// Terminates an employee by setting termination details and updating the employee lifecycle status.
+    /// Requests a one-time verification code before employee termination can be confirmed.
     /// </summary>
+    [Authorize(Policy = AuthorizationPolicyNames.CanTerminateEmployee)]
+    [HttpPost("{employeeId:int}/termination/verification-code")]
+    [ProducesResponseType(typeof(TerminationVerificationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<TerminationVerificationResponse>> RequestTerminationVerificationCode(
+        [FromRoute, Range(1, int.MaxValue)] int employeeId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _employeeService.RequestTerminationVerificationCodeAsync(
+            employeeId,
+            _clientIpAddressProvider.GetClientIpAddress(),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Confirms a one-time verification code and terminates the employee when validation succeeds.
+    /// </summary>
+    [Authorize(Policy = AuthorizationPolicyNames.CanTerminateEmployee)]
+    [HttpPost("{employeeId:int}/termination/confirm")]
+    [ProducesResponseType(typeof(TerminateEmployeeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<TerminateEmployeeResponse>> ConfirmEmployeeTermination(
+        [FromRoute, Range(1, int.MaxValue)] int employeeId,
+        [FromBody] ConfirmEmployeeTerminationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _employeeService.ConfirmTerminationAsync(
+            employeeId,
+            request,
+            _clientIpAddressProvider.GetClientIpAddress(),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Legacy direct termination endpoint. Prefer the verification-code and confirm endpoints.
+    /// </summary>
+    [Obsolete("Use POST /api/employees/{employeeId}/termination/verification-code followed by POST /api/employees/{employeeId}/termination/confirm.")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [Authorize(Policy = AuthorizationPolicyNames.CanTerminateEmployee)]
     [HttpPost("{employeeId:int}/termination")]
     [ProducesResponseType(typeof(TerminateEmployeeResponse), StatusCodes.Status200OK)]

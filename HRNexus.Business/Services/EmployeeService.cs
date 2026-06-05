@@ -2,6 +2,7 @@ using HRNexus.Business.Exceptions;
 using HRNexus.Business.Interfaces;
 using HRNexus.Business.Models.Core;
 using HRNexus.Business.Models.Employee;
+using HRNexus.Business.Models.Security;
 using HRNexus.Business.Models.Notifications;
 using HRNexus.Business.Security;
 using HRNexus.DataAccess.Abstractions;
@@ -20,6 +21,7 @@ public sealed class EmployeeService : IEmployeeService
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IUserActivityLogService _userActivityLogService;
     private readonly IEmployeeTerminationNotificationService _employeeTerminationNotificationService;
+    private readonly IVerificationCodeService _verificationCodeService;
     private readonly IHRNexusDbContext _dbContext;
     private readonly ILogger<EmployeeService> _logger;
 
@@ -29,6 +31,7 @@ public sealed class EmployeeService : IEmployeeService
         ICurrentUserContext currentUserContext,
         IUserActivityLogService userActivityLogService,
         IEmployeeTerminationNotificationService employeeTerminationNotificationService,
+        IVerificationCodeService verificationCodeService,
         IHRNexusDbContext dbContext,
         ILogger<EmployeeService> logger)
     {
@@ -37,6 +40,7 @@ public sealed class EmployeeService : IEmployeeService
         _currentUserContext = currentUserContext;
         _userActivityLogService = userActivityLogService;
         _employeeTerminationNotificationService = employeeTerminationNotificationService;
+        _verificationCodeService = verificationCodeService;
         _dbContext = dbContext;
         _logger = logger;
     }
@@ -146,6 +150,63 @@ public sealed class EmployeeService : IEmployeeService
         return await GetDetailsAsync(employeeId, cancellationToken);
     }
 
+    public async Task<TerminationVerificationResponse> RequestTerminationVerificationCodeAsync(
+        int employeeId,
+        string? clientIpAddress,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUserContext.UserId
+            ?? throw new AuthenticationFailedException("Authenticated user context is missing.");
+
+        await ValidateEmployeeCanStartTerminationAsync(employeeId, cancellationToken);
+
+        var result = await _verificationCodeService.IssueCodeAsync(
+            new ActionVerificationCodeIssueRequest(
+                ActionVerificationConstants.EmployeeTerminationAction,
+                ActionVerificationConstants.EmployeeTargetEntity,
+                employeeId,
+                userId,
+                clientIpAddress),
+            cancellationToken);
+
+        return new TerminationVerificationResponse(
+            result.VerificationRequestId,
+            result.DeliveryMethod,
+            result.DestinationMasked,
+            result.ExpiresAt,
+            result.Message);
+    }
+
+    public async Task<TerminateEmployeeResponse> ConfirmTerminationAsync(
+        int employeeId,
+        ConfirmEmployeeTerminationRequest request,
+        string? clientIpAddress,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var userId = _currentUserContext.UserId
+            ?? throw new AuthenticationFailedException("Authenticated user context is missing.");
+
+        if (!request.VerificationRequestId.HasValue)
+        {
+            throw new BusinessRuleException("Verification request is required.");
+        }
+
+        await _verificationCodeService.VerifyCodeAsync(
+            new ActionVerificationCodeVerifyRequest(
+                request.VerificationRequestId.Value,
+                request.VerificationCode,
+                ActionVerificationConstants.EmployeeTerminationAction,
+                ActionVerificationConstants.EmployeeTargetEntity,
+                employeeId,
+                userId,
+                clientIpAddress),
+            cancellationToken);
+
+        return await TerminateAsync(employeeId, request, cancellationToken);
+    }
+
     public async Task<TerminateEmployeeResponse> TerminateAsync(
         int employeeId,
         TerminateEmployeeRequest request,
@@ -223,7 +284,7 @@ public sealed class EmployeeService : IEmployeeService
         }
 
         await OperationalServiceHelpers.SaveChangesAsync(_dbContext, "terminate employee", cancellationToken);
-        await LogEmployeeTerminatedAsync(employee, terminationReason, terminationDate, cancellationToken);
+        await LogEmployeeTerminatedAsync(employee, terminationReason, terminationDate, request.Remarks, cancellationToken);
         await NotifyEmployeeTerminatedAsync(employee, terminationReason, terminationDate, now, cancellationToken);
 
         return new TerminateEmployeeResponse(
@@ -337,6 +398,25 @@ public sealed class EmployeeService : IEmployeeService
         return new EntityNotFoundException($"Employee {employeeId} was not found.");
     }
 
+    private async Task ValidateEmployeeCanStartTerminationAsync(int employeeId, CancellationToken cancellationToken)
+    {
+        var employee = await _employeeRepository.GetByIdForTerminationAsync(employeeId, cancellationToken)
+            ?? throw CreateNotFoundException(employeeId);
+
+        if (employee.IsDeleted || employee.Person.IsDeleted)
+        {
+            throw new BusinessRuleException("Employee is deleted and cannot be terminated.");
+        }
+
+        var terminatedStatus = await _referenceDataRepository.GetTerminatedEmploymentStatusAsync(cancellationToken)
+            ?? throw new BusinessRuleException("Terminated employment status is not configured.");
+
+        if (employee.TerminationDate.HasValue || IsTerminatedStatus(employee, terminatedStatus.EmploymentStatusId))
+        {
+            throw new BusinessRuleException("Employee is already terminated.");
+        }
+    }
+
     private static string FormatEmployeeCode(int sequenceNumber)
     {
         return $"HRN-EMP-{sequenceNumber:D4}";
@@ -355,15 +435,22 @@ public sealed class EmployeeService : IEmployeeService
         EmployeeEntity employee,
         TerminationReasonReference terminationReason,
         DateOnly terminationDate,
+        string? remarks,
         CancellationToken cancellationToken)
     {
         try
         {
+            var details = $"Employee {employee.EmployeeCode} terminated. Reason: {terminationReason.ReasonName}. Date: {terminationDate:yyyy-MM-dd}. Notification step triggered.";
+            if (!string.IsNullOrWhiteSpace(remarks))
+            {
+                details += " HR remarks were provided.";
+            }
+
             await _userActivityLogService.LogAsync(
                 _currentUserContext.UserId,
                 SecurityActivityCodes.EmployeeTerminated,
                 true,
-                $"Employee {employee.EmployeeCode} terminated. Reason: {terminationReason.ReasonName}. Date: {terminationDate:yyyy-MM-dd}. Notification step triggered.",
+                details,
                 null,
                 cancellationToken);
         }

@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISecurityAdminRepository, SecurityAdminRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IActionVerificationCodeRepository, ActionVerificationCodeRepository>();
         services.AddScoped<IActivityTypeRepository, ActivityTypeRepository>();
         services.AddScoped<IUserActivityLogRepository, UserActivityLogRepository>();
         services.AddScoped<ILeaveTypeRepository, LeaveTypeRepository>();

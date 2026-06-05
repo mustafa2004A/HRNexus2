@@ -44,7 +44,7 @@ public class CreateEmployeeCoreRequest
 
 public sealed class UpdateEmployeeCoreRequest : CreateEmployeeCoreRequest;
 
-public sealed class TerminateEmployeeRequest
+public class TerminateEmployeeRequest
 {
     [Range(1, int.MaxValue)]
     public int TerminationReasonId { get; set; }
@@ -54,6 +54,26 @@ public sealed class TerminateEmployeeRequest
 
     [Required]
     public bool? IsEligibleForRehire { get; set; }
+
+    [StringLength(500)]
+    public string? Remarks { get; set; }
+}
+
+public sealed record TerminationVerificationResponse(
+    Guid VerificationRequestId,
+    string DeliveryMethod,
+    string? DestinationMasked,
+    DateTime ExpiresAt,
+    string Message);
+
+public sealed class ConfirmEmployeeTerminationRequest : TerminateEmployeeRequest
+{
+    [Required]
+    public Guid? VerificationRequestId { get; set; }
+
+    [Required]
+    [RegularExpression(@"^\d{6}$", ErrorMessage = "Verification code must be 6 digits.")]
+    public string VerificationCode { get; set; } = string.Empty;
 }
 
 public sealed record TerminateEmployeeResponse(
