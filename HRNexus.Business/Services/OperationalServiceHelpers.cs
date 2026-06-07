@@ -175,7 +175,12 @@ internal static class OperationalServiceHelpers
             document.UploadedBy,
             document.UploadedByUsername,
             document.UploadedDate,
-            document.Remarks);
+            document.Remarks,
+            document.OriginalFileName,
+            document.ContentType,
+            document.FileSizeBytes,
+            document.IntegrityStatus,
+            document.LastIntegrityCheckAt);
     }
 
     public static string MaskSensitiveValue(string value)

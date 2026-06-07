@@ -28,9 +28,9 @@ Termination-related employee state is seeded only for dedicated demo employees. 
 
 The seed creates or updates a linked Admin employee/person (`HRN-ADMIN`) and ensures the `Admin` user is active, linked to that employee, assigned the built-in `Admin` role, and granted `PermissionMask = -1` user overrides on all active modules.
 
-The development password bootstrap default list now includes `Admin`, so the password can be applied by the Argon2 hashing service instead of SQL. The requested local demo password is not written into SQL or documentation.
+The development password bootstrap flow supports per-user local demo password pairs, so passwords can be applied by the Argon2 hashing service instead of SQL. Local demo passwords are not written into SQL or documentation.
 
-Current caution: the existing bootstrap request model/service still enforce the normal minimum password policy. Applying the requested short local demo password requires an explicitly approved development-only validation relaxation, or use a compliant temporary password through the existing endpoint.
+Current caution: the bootstrap request model/service still enforce development password strength validation. The requested short Admin-only local password remains blocked unless a future explicitly approved Development-only exception is added.
 
 ## Roles And Permissions
 

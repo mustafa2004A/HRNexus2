@@ -11,6 +11,36 @@ public sealed record EmployeeDetailsQueryResult(
     bool IsEligibleForRehire,
     string? PhotoUrl,
     int? PhotoFileStorageItemId);
+public sealed record EmployeeDocumentListItemQueryResult(
+    int DocumentId,
+    int EmployeeId,
+    string EmployeeCode,
+    string EmployeeFullName,
+    int DocumentTypeId,
+    string DocumentTypeName,
+    string DocumentName,
+    string? ReferenceNumber,
+    string? FileExtension,
+    int? FileStorageItemId,
+    DateOnly? IssueDate,
+    DateOnly? ExpiryDate,
+    bool IsVerified,
+    bool IsActive,
+    DateTime UploadedDate,
+    string? OriginalFileName,
+    string? ContentType,
+    long? FileSizeBytes,
+    string IntegrityStatus,
+    DateTime? LastIntegrityCheckAt);
+
+public sealed record PagedQueryResult<T>(
+    IReadOnlyList<T> Items,
+    int TotalCount,
+    int PageNumber,
+    int PageSize)
+{
+    public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+}
 
 public sealed record EmployeeCurrentContextQueryResult(
     int EmployeeId,
@@ -37,10 +67,11 @@ public sealed record EmployeeJobHistoryItemQueryResult(
 
 public sealed record EmployeeDocumentItemQueryResult(
     int DocumentId,
+    int DocumentTypeId,
     string DocumentName,
     string DocumentTypeName,
     string? ReferenceNumber,
-    string FileExtension,
+    string? FileExtension,
     int? FileStorageItemId,
     DateOnly? IssueDate,
     DateOnly? ExpiryDate,
@@ -48,7 +79,12 @@ public sealed record EmployeeDocumentItemQueryResult(
     string? VerifiedByUsername,
     DateTime? VerifiedDate,
     bool IsActive,
-    DateTime UploadedDate);
+    DateTime UploadedDate,
+    string? OriginalFileName,
+    string? ContentType,
+    long? FileSizeBytes,
+    string IntegrityStatus,
+    DateTime? LastIntegrityCheckAt);
 
 public sealed record EmployeeSummaryQueryResult(
     int EmployeeId,
@@ -105,8 +141,8 @@ public sealed record EmployeeDocumentQueryResult(
     string DocumentTypeName,
     string DocumentName,
     string? ReferenceNumber,
-    string FilePath,
-    string FileExtension,
+    string? FilePath,
+    string? FileExtension,
     int? FileStorageItemId,
     DateOnly? IssueDate,
     DateOnly? ExpiryDate,
@@ -118,4 +154,9 @@ public sealed record EmployeeDocumentQueryResult(
     int? UploadedBy,
     string? UploadedByUsername,
     DateTime UploadedDate,
-    string? Remarks);
+    string? Remarks,
+    string? OriginalFileName,
+    string? ContentType,
+    long? FileSizeBytes,
+    string IntegrityStatus,
+    DateTime? LastIntegrityCheckAt);

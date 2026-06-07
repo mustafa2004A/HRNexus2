@@ -192,8 +192,8 @@ public sealed record EmployeeDocumentDto(
     string DocumentTypeName,
     string DocumentName,
     string? ReferenceNumber,
-    string FilePath,
-    string FileExtension,
+    string? FilePath,
+    string? FileExtension,
     int? FileStorageItemId,
     DateOnly? IssueDate,
     DateOnly? ExpiryDate,
@@ -205,7 +205,12 @@ public sealed record EmployeeDocumentDto(
     int? UploadedBy,
     string? UploadedByUsername,
     DateTime UploadedDate,
-    string? Remarks);
+    string? Remarks,
+    string? OriginalFileName,
+    string? ContentType,
+    long? FileSizeBytes,
+    string IntegrityStatus,
+    DateTime? LastIntegrityCheckAt);
 
 public sealed class UploadEmployeeDocumentRequest
 {

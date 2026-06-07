@@ -276,6 +276,40 @@ public sealed class EmployeeController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = AuthorizationPolicyNames.HrOrAdmin)]
+    [HttpGet("/api/documents")]
+    [ProducesResponseType(typeof(PagedResultDto<EmployeeDocumentListItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<PagedResultDto<EmployeeDocumentListItemDto>>> SearchDocuments(
+    [FromQuery] string? search,
+    [FromQuery] int? employeeId,
+    [FromQuery] int? documentTypeId,
+    [FromQuery] string? verificationStatus,
+    [FromQuery] string? integrityStatus,
+    [FromQuery] string? expiryStatus,
+    [FromQuery] bool includeInactive = false,
+    [FromQuery, Range(1, int.MaxValue)] int pageNumber = 1,
+    [FromQuery, Range(1, 100)] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await _employeeDocumentService.SearchDocumentsAsync(
+            search,
+            employeeId,
+            documentTypeId,
+            verificationStatus,
+            integrityStatus,
+            expiryStatus,
+            includeInactive,
+            pageNumber,
+            pageSize,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
     [Authorize(Policy = AuthorizationPolicyNames.SelfOrHr)]
     [HttpGet("{employeeId:int}/documents")]
     [ProducesResponseType(typeof(IReadOnlyList<EmployeeDocumentItemDto>), StatusCodes.Status200OK)]

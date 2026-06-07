@@ -18,6 +18,39 @@ public sealed class EmployeeDocumentService : IEmployeeDocumentService
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IHRNexusDbContext _dbContext;
 
+    public async Task<PagedResultDto<EmployeeDocumentListItemDto>> SearchDocumentsAsync(
+     string? search,
+     int? employeeId,
+     int? documentTypeId,
+     string? verificationStatus,
+     string? integrityStatus,
+     string? expiryStatus,
+     bool includeInactive,
+     int pageNumber,
+     int pageSize,
+     CancellationToken cancellationToken = default)
+    {
+        var result = await _employeeDocumentRepository.SearchAsync(
+            search,
+            employeeId,
+            documentTypeId,
+            verificationStatus,
+            integrityStatus,
+            expiryStatus,
+            includeInactive,
+            pageNumber,
+            pageSize,
+            cancellationToken);
+
+        return new PagedResultDto<EmployeeDocumentListItemDto>
+        {
+            Items = result.Items.Select(ToDocumentListItemDto).ToList(),
+            TotalCount = result.TotalCount,
+            PageNumber = result.PageNumber,
+            PageSize = result.PageSize,
+            TotalPages = result.TotalPages
+        };
+    }
     public EmployeeDocumentService(
         IEmployeeRepository employeeRepository,
         IEmployeeDocumentRepository employeeDocumentRepository,
@@ -203,6 +236,7 @@ public sealed class EmployeeDocumentService : IEmployeeDocumentService
     {
         return new EmployeeDocumentItemDto(
             document.DocumentId,
+            document.DocumentTypeId,
             document.DocumentName,
             document.DocumentTypeName,
             document.ReferenceNumber,
@@ -214,6 +248,47 @@ public sealed class EmployeeDocumentService : IEmployeeDocumentService
             document.VerifiedByUsername,
             document.VerifiedDate,
             document.IsActive,
-            document.UploadedDate);
+            document.UploadedDate,
+            document.OriginalFileName,
+            document.ContentType,
+            document.FileSizeBytes,
+            document.IntegrityStatus,
+            document.LastIntegrityCheckAt);
+    }
+    private static EmployeeDocumentListItemDto ToDocumentListItemDto(
+    EmployeeDocumentListItemQueryResult item)
+    {
+        return new EmployeeDocumentListItemDto
+        {
+            DocumentId = item.DocumentId,
+            EmployeeId = item.EmployeeId,
+            EmployeeCode = item.EmployeeCode,
+            EmployeeFullName = item.EmployeeFullName,
+
+            DocumentTypeId = item.DocumentTypeId,
+            DocumentTypeName = item.DocumentTypeName,
+
+            DocumentName = item.DocumentName,
+            ReferenceNumber = item.ReferenceNumber,
+
+            FileExtension = item.FileExtension,
+            FileStorageItemId = item.FileStorageItemId,
+
+            IssueDate = item.IssueDate,
+            ExpiryDate = item.ExpiryDate,
+
+            IsVerified = item.IsVerified,
+            IsActive = item.IsActive,
+
+            UploadedDate = item.UploadedDate,
+
+            OriginalFileName = item.OriginalFileName,
+            ContentType = item.ContentType,
+            FileSizeBytes = item.FileSizeBytes,
+
+            IntegrityStatus = item.IntegrityStatus,
+            LastIntegrityCheckAt = item.LastIntegrityCheckAt
+        };
     }
 }
+
